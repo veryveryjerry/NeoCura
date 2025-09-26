@@ -9,8 +9,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Backend URL
-BACKEND_URL = "https://neocura.onrender.com/webhook"
+# Backend URL - Changed to use /analyze endpoint instead of /webhook
+BACKEND_URL = "https://neocura.onrender.com/analyze"
 
 # Initialize session state
 if 'messages' not in st.session_state:
@@ -57,13 +57,10 @@ if prompt := st.chat_input("Type your message here..."):
     import datetime
     st.session_state.timestamp = datetime.datetime.now().isoformat()
     
-    # Prepare payload with event_type field
+    # Prepare payload for /analyze endpoint
     payload = {
-        "message": prompt,
-        "language": language.lower(),
-        "user_id": "streamlit_user",
-        "timestamp": str(st.session_state.get('timestamp', '')),
-        "event_type": "user_message"
+        "prompt": prompt,
+        "language": language.lower()
     }
     
     try:
