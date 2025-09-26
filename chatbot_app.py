@@ -59,7 +59,7 @@ if prompt := st.chat_input("Type your message here..."):
     
     # Prepare payload for /analyze endpoint
     payload = {
-        "prompt": prompt,
+        "text": prompt,
         "language": language.lower()
     }
     
