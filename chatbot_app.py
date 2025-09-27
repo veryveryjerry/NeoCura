@@ -67,6 +67,16 @@ if prompt := st.chat_input("Type your message here..."):
         # Send request to backend
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
+                # =====================================================
+                # 🚨🚨🚨 ABOUT TO SEND BACKEND API REQUEST 🚨🚨🚨
+                # =====================================================
+                print("\n" + "=" * 60)
+                print("🚀 BACKEND API CALL STARTING")
+                print(f"📍 URL: {BACKEND_URL}")
+                print(f"📦 Payload: {payload}")
+                print(f"🕐 Timestamp: {datetime.datetime.now()}")
+                print("=" * 60 + "\n")
+                
                 response = requests.post(
                     BACKEND_URL,
                     json=payload,
@@ -82,22 +92,60 @@ if prompt := st.chat_input("Type your message here..."):
                     st.session_state.messages.append({"role": "assistant", "content": bot_response})
                     st.markdown(bot_response)
                     
+                    # =====================================================
+                    # ✅✅✅ SUCCESSFUL API RESPONSE RECEIVED ✅✅✅
+                    # =====================================================
+                    print("\n" + "=" * 60)
+                    print("✅ BACKEND API CALL SUCCESSFUL")
+                    print(f"📊 Status Code: {response.status_code}")
+                    print(f"📄 Response Length: {len(bot_response)} characters")
+                    print(f"🕐 Completed at: {datetime.datetime.now()}")
+                    print("=" * 60 + "\n")
+                    
                 else:
                     error_msg = f"Error: {response.status_code} - {response.text}"
                     st.session_state.messages.append({"role": "assistant", "content": error_msg})
                     st.error(error_msg)
+                    
+                    # =====================================================
+                    # ❌❌❌ API ERROR RESPONSE RECEIVED ❌❌❌
+                    # =====================================================
+                    print("\n" + "=" * 60)
+                    print("❌ BACKEND API CALL FAILED")
+                    print(f"📊 Status Code: {response.status_code}")
+                    print(f"📄 Error Message: {response.text}")
+                    print(f"🕐 Failed at: {datetime.datetime.now()}")
+                    print("=" * 60 + "\n")
                     
     except requests.exceptions.RequestException as e:
         error_msg = f"Connection error: {str(e)}"
         with st.chat_message("assistant"):
             st.error(error_msg)
         st.session_state.messages.append({"role": "assistant", "content": error_msg})
+        
+        # =====================================================
+        # 🔌🔌🔌 CONNECTION ERROR OCCURRED 🔌🔌🔌
+        # =====================================================
+        print("\n" + "=" * 60)
+        print("🔌 CONNECTION ERROR")
+        print(f"📄 Error: {str(e)}")
+        print(f"🕐 Error at: {datetime.datetime.now()}")
+        print("=" * 60 + "\n")
     
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         with st.chat_message("assistant"):
             st.error(error_msg)
         st.session_state.messages.append({"role": "assistant", "content": error_msg})
+        
+        # =====================================================
+        # 💥💥💥 UNEXPECTED ERROR OCCURRED 💥💥💥
+        # =====================================================
+        print("\n" + "=" * 60)
+        print("💥 UNEXPECTED ERROR")
+        print(f"📄 Error: {str(e)}")
+        print(f"🕐 Error at: {datetime.datetime.now()}")
+        print("=" * 60 + "\n")
 
 # Footer
 st.markdown("---")
