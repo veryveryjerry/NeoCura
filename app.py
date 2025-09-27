@@ -52,25 +52,22 @@ def med42_webhook():
                 'fallback_message': FALLBACK_MESSAGE,
                 'status': 'handled'
             }), 200  # Return 200 to acknowledge receipt
-        else:
-            print(f"Warning: Unknown event type received: {event_type}")
-            return jsonify({
-                'error': f'Unknown event type: {event_type}',
-                'fallback_message': FALLBACK_MESSAGE,
-                'status': 'handled'
-            }), 200  # Return 200 to acknowledge receipt
-            
+    
     except Exception as e:
-        print(f"Error processing webhook: {str(e)}")
+        print(f"Webhook error: {str(e)}")
         return jsonify({
-            'error': 'Internal server error',
-            'fallback_message': FALLBACK_MESSAGE,
-            'status': 'handled'
-        }), 200  # Return 200 to acknowledge receipt and prevent retries
+            'error': 'Internal webhook processing error',
+            'fallback_message': FALLBACK_MESSAGE
+        }), 200  # Return 200 to acknowledge receipt
+    
+    return jsonify({
+        'status': 'handled',
+        'message': 'Unknown event type processed'
+    }), 200
 
 @app.route('/analyze', methods=['POST'])
-def trigger_analysis():
-    """Trigger Med42 AI analysis with improved error handling"""
+def analyze():
+    """Hybrid analyze endpoint - supports both direct chat Q&A and Med42 job processing"""
     try:
         data = request.get_json()
         
@@ -80,6 +77,96 @@ def trigger_analysis():
                 'fallback_message': FALLBACK_MESSAGE
             }), 400
         
+        # Check if this is a direct chat request (has 'direct_response' flag or no webhook_url)
+        is_direct_chat = data.get('direct_response', False) or not data.get('webhook_url')
+        
+        if is_direct_chat:
+            # Handle as direct chat Q&A
+            return handle_direct_chat(data)
+        else:
+            # Handle as Med42 job (original behavior)
+            return trigger_med42_analysis(data)
+            
+    except Exception as e:
+        print(f"Error in analyze endpoint: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Internal server error',
+            'fallback_message': FALLBACK_MESSAGE
+        }), 200
+
+def handle_direct_chat(data):
+    """Handle direct chat Q&A requests"""
+    try:
+        # Prepare request for direct chat to Med42
+        headers = {
+            'Authorization': f'Bearer {MED42_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Use synchronous chat endpoint instead of async analysis
+        chat_payload = {
+            'text': data['text'],
+            'metadata': data.get('metadata', {})
+        }
+        
+        # Make direct request to Med42 chat/completion endpoint
+        response = requests.post(
+            f"{MED42_API_URL}/chat",  # Different endpoint for direct responses
+            json=chat_payload,
+            headers=headers,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            
+            # Extract the response text
+            ai_response = response_data.get('response', response_data.get('text', ''))
+            
+            if not ai_response:
+                return jsonify({
+                    'status': 'warning',
+                    'message': 'No response from AI',
+                    'fallback_message': FALLBACK_MESSAGE
+                }), 200
+            
+            return jsonify({
+                'status': 'success',
+                'response': ai_response,
+                'type': 'direct_chat'
+            })
+        else:
+            print(f"Chat API error: {response.status_code} - {response.text}")
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to get AI response',
+                'fallback_message': FALLBACK_MESSAGE
+            }), 200
+            
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'status': 'error',
+            'message': 'AI response timeout',
+            'fallback_message': FALLBACK_MESSAGE
+        }), 200
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'status': 'error',
+            'message': 'Unable to connect to AI service',
+            'fallback_message': FALLBACK_MESSAGE
+        }), 200
+    except Exception as e:
+        print(f"Direct chat error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Chat processing error',
+            'fallback_message': FALLBACK_MESSAGE
+        }), 200
+
+def trigger_med42_analysis(data):
+    """Trigger Med42 AI analysis job (original functionality)"""
+    try:
         # Prepare the request to Med42 API
         headers = {
             'Authorization': f'Bearer {MED42_API_KEY}',
@@ -88,7 +175,7 @@ def trigger_analysis():
         
         med42_payload = {
             'text': data['text'],
-            'webhook_url': request.host_url + 'webhook',
+            'webhook_url': data.get('webhook_url', request.host_url + 'webhook'),
             'metadata': data.get('metadata', {})
         }
         
@@ -97,7 +184,7 @@ def trigger_analysis():
             f"{MED42_API_URL}/analyze",
             json=med42_payload,
             headers=headers,
-            timeout=30  # Add timeout
+            timeout=30
         )
         
         if response.status_code == 200:
@@ -115,7 +202,8 @@ def trigger_analysis():
             return jsonify({
                 'status': 'success',
                 'message': 'Analysis triggered successfully',
-                'job_id': job_id
+                'job_id': job_id,
+                'type': 'med42_job'
             })
         else:
             print(f"API error: {response.status_code} - {response.text}")
@@ -123,8 +211,8 @@ def trigger_analysis():
                 'status': 'error',
                 'message': 'Failed to trigger analysis',
                 'fallback_message': FALLBACK_MESSAGE,
-                'details': response.text[:200]  # Limit error details
-            }), 200  # Return 200 with fallback message
+                'details': response.text[:200]
+            }), 200
             
     except requests.exceptions.Timeout:
         print("API request timeout")
