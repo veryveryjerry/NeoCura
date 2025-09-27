@@ -2,4 +2,6 @@ Flask==3.0.0
 requests==2.31.0
 gunicorn==21.2.0
 streamlit==1.28.0
-openai
+streamlit>=1.28.0    # Web interface
+openai>=1.0.0        # API client for Hugging Face
+python-dotenv>=1.0.0 # Environment management
